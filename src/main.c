@@ -26,9 +26,6 @@ void cutPage(char* str, const char* value);
 
 int main(int argc, char** argv) {
 
-    setvbuf(stdout, NULL, _IONBF, 0);
-    setvbuf(stderr, NULL, _IONBF, 0);
-
     char googleChrome[255];
     setPath(googleChrome);
 
@@ -60,7 +57,6 @@ int main(int argc, char** argv) {
     sqlite3_close(db);
 
     wQuit();
-
     return (EXIT_SUCCESS);
 }
 
@@ -73,11 +69,9 @@ void wQuit() {
 
 void setPath(char* path) {
     char name[255];
-
     printf("Insert user name: ");
-    scanf("%s", name);
-
-    getPath(path, name, PATH1, PATH2);
+    scanf("%[^\t\n]", name);
+	getPath(path, name, PATH1, PATH2);
 }
 
 void printData(sqlite3_stmt* stmHandle) {
