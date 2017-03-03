@@ -178,12 +178,14 @@ int readdata() {
 #endif
 
 	unsigned char key[16];
+#ifdef __APPLE__
 	const char salt[] = "saltysalt";
 	int res = pbkdf2_hmac_sha1(pwd, salt, 1003, 16, key);
 	if (!res) {
 		printf("error with kdf.");
 		exit(1);
 	}
+#endif
 
 	int hasRow, id = 0;
 	do {
