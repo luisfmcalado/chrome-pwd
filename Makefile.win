@@ -1,0 +1,26 @@
+SOURCES=$(wildcard deps/*.c src/*.c)
+SOURCES := $(filter-out src/crypto.c, $(SOURCES))
+
+T_SOURCES=$(wildcard deps/*.c test/*.c src/*.c)
+T_SOURCES := $(filter-out src/main.c src/crypto.c, $(T_SOURCES))
+CC=gcc
+
+INC_LIBS=
+LIBS=-lcrypt32
+
+CFLAGS=-Wall
+
+all: dir
+	$(CC) -o build/cdr $(SOURCES) $(CFLAGS) $(LIBS) $(INC_LIBS) $(MACROS)
+
+debug: dir
+	$(CC) -o build/cdr -g $(SOURCES) $(CFLAGS) $(LIBS) $(INC_LIBS) -DDEBUG $(MACROS)
+
+test: dir
+	$(CC) -o build/cdr_test -g $(T_SOURCES) $(CFLAGS) $(LIBS) $(INC_LIBS) -DDEBUG $(MACROS)
+
+dir: clean
+	md build
+
+clean:
+	rd /s /q build
